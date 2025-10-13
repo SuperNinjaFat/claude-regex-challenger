@@ -1,4 +1,4 @@
-# Regex Quiz App
+# Programming Quiz App
 The app includes challenges ranging from basic patterns like matching digits to advanced concepts like backreferences and complex validation patterns for emails, URLs, and IP addresses.
 
 ## Features:
