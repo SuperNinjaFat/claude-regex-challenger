@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { regexChallenges } from '../data/challenges';
+import { regexChallenges, postgresqlChallenges } from '../data/challenges';
 
 function Quiz() {
-  const { difficulty } = useParams();
+  const { quizType, difficulty } = useParams();
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
@@ -13,7 +13,8 @@ function Quiz() {
   const [answers, setAnswers] = useState([]);
   const [isCorrect, setIsCorrect] = useState(null);
 
-  const challenges = regexChallenges[difficulty] || [];
+  const allChallenges = quizType === 'regex' ? regexChallenges : postgresqlChallenges;
+  const challenges = allChallenges[difficulty] || [];
   const challenge = challenges[currentQuestion];
 
   useEffect(() => {
@@ -40,27 +41,57 @@ function Quiz() {
     }
   };
 
+  const normalizeSql = (sql) => {
+    return sql
+      .trim()
+      .toUpperCase()
+      .replace(/\s+/g, ' ')
+      .replace(/\s*;\s*$/, '')
+      .replace(/\s*,\s*/g, ',')
+      .replace(/\s*\(\s*/g, '(')
+      .replace(/\s*\)\s*/g, ')')
+      .replace(/\s*=\s*/g, '=')
+      .replace(/\s*>\s*/g, '>')
+      .replace(/\s*<\s*/g, '<');
+  };
+
   const checkAnswer = () => {
     if (!userAnswer.trim()) {
-      setFeedback('Please enter a regex pattern');
+      setFeedback(quizType === 'regex' ? 'Please enter a regex pattern' : 'Please enter a SQL query');
       setIsCorrect(false);
       return;
     }
 
-    const userMatches = getMatches(userAnswer, challenge.testString);
-    const correctMatches = getMatches(challenge.correctAnswer, challenge.testString);
-    
-    const isAnswerCorrect = userMatches.length > 0 && 
-                           userMatches.length === correctMatches.length &&
-                           userMatches.every(match => correctMatches.includes(match));
+    let isAnswerCorrect;
+
+    if (quizType === 'regex') {
+      const userMatches = getMatches(userAnswer, challenge.testString);
+      const correctMatches = getMatches(challenge.correctAnswer, challenge.testString);
+
+      isAnswerCorrect = userMatches.length > 0 &&
+                       userMatches.length === correctMatches.length &&
+                       userMatches.every(match => correctMatches.includes(match));
+
+      if (!isAnswerCorrect) {
+        setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
+      }
+    } else {
+      // PostgreSQL quiz - normalize and compare SQL queries
+      const normalizedUserAnswer = normalizeSql(userAnswer);
+      const normalizedCorrectAnswer = normalizeSql(challenge.correctAnswer);
+
+      isAnswerCorrect = normalizedUserAnswer === normalizedCorrectAnswer;
+
+      if (!isAnswerCorrect) {
+        setFeedback(`Incorrect. Try again! Expected something like: ${challenge.correctAnswer}`);
+      }
+    }
 
     setIsCorrect(isAnswerCorrect);
-    
+
     if (isAnswerCorrect) {
       setFeedback('Correct! Well done!');
       setScore(score + 1);
-    } else {
-      setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
     }
 
     setAnswers([...answers, {
@@ -86,7 +117,7 @@ function Quiz() {
   return (
     <div className="quiz">
       <div className="quiz-header">
-        <h2>Regex Quiz - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
+        <h2>{quizType === 'regex' ? 'Regex' : 'PostgreSQL'} Quiz - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
         <div className="progress">
           Question {currentQuestion + 1} of {challenges.length}
         </div>
@@ -96,26 +127,37 @@ function Quiz() {
       <div className="question-card">
         <h3>{challenge.question}</h3>
         <p className="description">{challenge.description}</p>
-        
+
         <div className="test-string">
-          <label>Test String:</label>
+          <label>{quizType === 'regex' ? 'Test String:' : 'Tables:'}</label>
           <code>"{challenge.testString}"</code>
         </div>
 
         <div className="answer-input">
-          <label htmlFor="regex-input">Your Regex Pattern:</label>
-          <div className="input-wrapper">
-            <span className="regex-delim">/</span>
-            <input
-              id="regex-input"
-              type="text"
+          <label htmlFor="regex-input">{quizType === 'regex' ? 'Your Regex Pattern:' : 'Your SQL Query:'}</label>
+          {quizType === 'regex' ? (
+            <div className="input-wrapper">
+              <span className="regex-delim">/</span>
+              <input
+                id="regex-input"
+                type="text"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder="Enter your regex pattern here..."
+                onKeyPress={(e) => e.key === 'Enter' && checkAnswer()}
+              />
+              <span className="regex-delim">/g</span>
+            </div>
+          ) : (
+            <textarea
+              id="sql-input"
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
-              placeholder="Enter your regex pattern here..."
-              onKeyPress={(e) => e.key === 'Enter' && checkAnswer()}
+              placeholder="Enter your SQL query here..."
+              rows="4"
+              onKeyPress={(e) => e.key === 'Enter' && e.ctrlKey && checkAnswer()}
             />
-            <span className="regex-delim">/g</span>
-          </div>
+          )}
         </div>
 
         {feedback && (
@@ -151,7 +193,7 @@ function Quiz() {
           </div>
         )}
 
-        {userAnswer && (
+        {userAnswer && quizType === 'regex' && (
           <div className="live-test">
             <h4>Live Test:</h4>
             <p>Your pattern matches: <strong>{getMatches(userAnswer, challenge.testString).join(', ') || 'nothing'}</strong></p>
