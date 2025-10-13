@@ -55,6 +55,56 @@ function Quiz() {
       .replace(/\s*<\s*/g, '<');
   };
 
+  const analyzeSql = (sql) => {
+    if (!sql.trim()) return null;
+
+    const analysis = {
+      valid: false,
+      keywords: [],
+      tables: [],
+      columns: [],
+      normalized: '',
+      errors: []
+    };
+
+    try {
+      const upperSql = sql.toUpperCase();
+
+      // Extract SQL keywords
+      const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN',
+                       'INNER JOIN', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT',
+                       'COUNT', 'AVG', 'SUM', 'MAX', 'MIN', 'WITH', 'AS', 'IN', 'LIKE',
+                       'AND', 'OR', 'NOT', 'DISTINCT', 'OVER', 'ROW_NUMBER'];
+
+      analysis.keywords = keywords.filter(keyword => upperSql.includes(keyword));
+
+      // Basic syntax validation
+      if (!upperSql.includes('SELECT')) {
+        analysis.errors.push('Missing SELECT keyword');
+      }
+
+      if (upperSql.includes('SELECT') && !upperSql.includes('FROM') && !upperSql.includes('COUNT') && !upperSql.includes('AVG')) {
+        analysis.errors.push('Missing FROM clause (might be needed)');
+      }
+
+      // Count parentheses
+      const openParens = (sql.match(/\(/g) || []).length;
+      const closeParens = (sql.match(/\)/g) || []).length;
+      if (openParens !== closeParens) {
+        analysis.errors.push(`Unbalanced parentheses: ${openParens} open, ${closeParens} close`);
+      }
+
+      // Get normalized version
+      analysis.normalized = normalizeSql(sql);
+      analysis.valid = analysis.errors.length === 0 && analysis.keywords.length > 0;
+
+      return analysis;
+    } catch (error) {
+      analysis.errors.push('Invalid SQL syntax');
+      return analysis;
+    }
+  };
+
   const checkAnswer = () => {
     if (!userAnswer.trim()) {
       setFeedback(quizType === 'regex' ? 'Please enter a regex pattern' : 'Please enter a SQL query');
@@ -199,6 +249,51 @@ function Quiz() {
             <p>Your pattern matches: <strong>{getMatches(userAnswer, challenge.testString).join(', ') || 'nothing'}</strong></p>
           </div>
         )}
+
+        {userAnswer && quizType === 'postgresql' && (() => {
+          const analysis = analyzeSql(userAnswer);
+          if (!analysis) return null;
+
+          return (
+            <div className="live-test sql-analysis">
+              <h4>SQL Analysis:</h4>
+
+              <div className="analysis-section">
+                <strong>Status:</strong>
+                <span className={`status-badge ${analysis.valid ? 'valid' : 'invalid'}`}>
+                  {analysis.valid ? '✓ Syntax looks valid' : '⚠ Potential issues detected'}
+                </span>
+              </div>
+
+              {analysis.keywords.length > 0 && (
+                <div className="analysis-section">
+                  <strong>Keywords detected:</strong>
+                  <div className="keyword-tags">
+                    {analysis.keywords.map((keyword, idx) => (
+                      <span key={idx} className="keyword-tag">{keyword}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {analysis.errors.length > 0 && (
+                <div className="analysis-section errors">
+                  <strong>Issues:</strong>
+                  <ul>
+                    {analysis.errors.map((error, idx) => (
+                      <li key={idx}>{error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              <div className="analysis-section">
+                <strong>Normalized query:</strong>
+                <code className="normalized-sql">{analysis.normalized}</code>
+              </div>
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
