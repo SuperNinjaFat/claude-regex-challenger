@@ -23,6 +23,56 @@
   margin: 0 auto;
 }
 
+.quiz-type-selection {
+  margin-bottom: 50px;
+}
+
+.quiz-type-selection h2 {
+  color: white;
+  margin-bottom: 25px;
+  font-size: 2rem;
+}
+
+.quiz-type-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.quiz-type-btn {
+  padding: 15px 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 3px solid white;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.quiz-type-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.quiz-type-btn.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.quiz-type-btn.active:hover {
+  background: white;
+  transform: scale(1.05) translateY(-2px);
+}
+
 .difficulty-selection h2 {
   color: white;
   margin-bottom: 40px;
@@ -229,6 +279,30 @@
   font-size: 1rem;
   font-family: monospace;
   outline: none;
+}
+
+#sql-input {
+  width: 100%;
+  border: 2px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  font-size: 1rem;
+  font-family: monospace;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.3s ease;
+  line-height: 1.5;
+}
+
+#sql-input:focus {
+  border-color: #007bff;
+  background: #ffffff;
+}
+
+#sql-input::placeholder {
+  color: #adb5bd;
 }
 
 .feedback {
