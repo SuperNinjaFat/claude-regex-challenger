@@ -1,3 +1,309 @@
+export const postgresqlChallenges = {
+  easy: [
+    {
+      id: 1,
+      question: "Select all columns from a table",
+      description: "Write a SQL query to select all columns from a table named 'users'",
+      testString: "users table: id, name, email, age",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          age INTEGER
+        );
+        INSERT INTO users (name, email, age) VALUES
+          ('Alice', 'alice@example.com', 25),
+          ('Bob', 'bob@example.com', 30),
+          ('Charlie', 'charlie@example.com', 17);
+      `,
+      correctAnswer: "SELECT * FROM users",
+      hints: ["Use SELECT *", "FROM specifies the table", "Don't forget the semicolon is optional"]
+    },
+    {
+      id: 2,
+      question: "Select specific columns",
+      description: "Write a SQL query to select only 'name' and 'email' columns from 'users' table",
+      testString: "users table: id, name, email, age",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          age INTEGER
+        );
+        INSERT INTO users (name, email, age) VALUES
+          ('Alice', 'alice@example.com', 25),
+          ('Bob', 'bob@example.com', 30),
+          ('Charlie', 'charlie@example.com', 17);
+      `,
+      correctAnswer: "SELECT name, email FROM users",
+      hints: ["List columns separated by commas", "Use FROM to specify table", "Order doesn't matter for correctness"]
+    },
+    {
+      id: 3,
+      question: "Filter with WHERE clause",
+      description: "Write a SQL query to select all users where age is greater than 18",
+      testString: "users table: id, name, email, age",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          age INTEGER
+        );
+        INSERT INTO users (name, email, age) VALUES
+          ('Alice', 'alice@example.com', 25),
+          ('Bob', 'bob@example.com', 30),
+          ('Charlie', 'charlie@example.com', 17);
+      `,
+      correctAnswer: "SELECT * FROM users WHERE age > 18",
+      hints: ["Use WHERE clause for filtering", "Use > for greater than", "Place WHERE after FROM"]
+    },
+    {
+      id: 4,
+      question: "Count rows",
+      description: "Write a SQL query to count the total number of users",
+      testString: "users table: id, name, email, age",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          age INTEGER
+        );
+        INSERT INTO users (name, email, age) VALUES
+          ('Alice', 'alice@example.com', 25),
+          ('Bob', 'bob@example.com', 30),
+          ('Charlie', 'charlie@example.com', 17);
+      `,
+      correctAnswer: "SELECT COUNT(*) FROM users",
+      hints: ["Use COUNT() function", "COUNT(*) counts all rows", "No WHERE clause needed"]
+    },
+    {
+      id: 5,
+      question: "Order results",
+      description: "Write a SQL query to select all users ordered by name in ascending order",
+      testString: "users table: id, name, email, age",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          age INTEGER
+        );
+        INSERT INTO users (name, email, age) VALUES
+          ('Alice', 'alice@example.com', 25),
+          ('Bob', 'bob@example.com', 30),
+          ('Charlie', 'charlie@example.com', 17);
+      `,
+      correctAnswer: "SELECT * FROM users ORDER BY name ASC",
+      hints: ["Use ORDER BY clause", "ASC means ascending", "Place ORDER BY at the end"]
+    }
+  ],
+  medium: [
+    {
+      id: 6,
+      question: "Join two tables",
+      description: "Write a SQL query to join 'users' and 'orders' tables on user_id",
+      testString: "users(id, name) orders(id, user_id, total)",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100)
+        );
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2)
+        );
+        INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');
+        INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00), (1, 75.50);
+      `,
+      correctAnswer: "SELECT * FROM users JOIN orders ON users.id = orders.user_id",
+      hints: ["Use JOIN keyword", "ON specifies join condition", "Match primary and foreign keys"]
+    },
+    {
+      id: 7,
+      question: "Group by and aggregate",
+      description: "Write a SQL query to count orders per user, showing user_id and count",
+      testString: "orders table: id, user_id, total, created_at",
+      setupSQL: `
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00), (1, 75.50), (3, 200.00), (1, 50.00);
+      `,
+      correctAnswer: "SELECT user_id, COUNT(*) FROM orders GROUP BY user_id",
+      hints: ["Use GROUP BY for aggregation", "COUNT(*) for counting", "Non-aggregated columns must be in GROUP BY"]
+    },
+    {
+      id: 8,
+      question: "Filter with IN operator",
+      description: "Write a SQL query to select users where status is 'active' or 'pending'",
+      testString: "users table: id, name, status",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          status VARCHAR(20)
+        );
+        INSERT INTO users (name, status) VALUES
+          ('Alice', 'active'),
+          ('Bob', 'inactive'),
+          ('Charlie', 'pending'),
+          ('David', 'active');
+      `,
+      correctAnswer: "SELECT * FROM users WHERE status IN ('active', 'pending')",
+      hints: ["Use IN operator", "List values in parentheses", "Strings need quotes"]
+    },
+    {
+      id: 9,
+      question: "Use LIKE for pattern matching",
+      description: "Write a SQL query to find users whose email ends with '@gmail.com'",
+      testString: "users table: id, name, email",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100)
+        );
+        INSERT INTO users (name, email) VALUES
+          ('Alice', 'alice@gmail.com'),
+          ('Bob', 'bob@yahoo.com'),
+          ('Charlie', 'charlie@gmail.com');
+      `,
+      correctAnswer: "SELECT * FROM users WHERE email LIKE '%@gmail.com'",
+      hints: ["Use LIKE operator", "% is a wildcard", "Place % at the start to match ending"]
+    },
+    {
+      id: 10,
+      question: "Limit results",
+      description: "Write a SQL query to select the first 10 users ordered by created_at",
+      testString: "users table: id, name, email, created_at",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100),
+          email VARCHAR(100),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO users (name, email) VALUES
+          ('User1', 'user1@example.com'),
+          ('User2', 'user2@example.com'),
+          ('User3', 'user3@example.com'),
+          ('User4', 'user4@example.com'),
+          ('User5', 'user5@example.com');
+      `,
+      correctAnswer: "SELECT * FROM users ORDER BY created_at LIMIT 10",
+      hints: ["Use LIMIT clause", "ORDER BY comes before LIMIT", "LIMIT goes at the end"]
+    }
+  ],
+  hard: [
+    {
+      id: 11,
+      question: "Subquery in WHERE",
+      description: "Write a SQL query to find users who have placed more than 2 orders",
+      testString: "users(id, name) orders(id, user_id, total)",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100)
+        );
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2)
+        );
+        INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie'), ('David');
+        INSERT INTO orders (user_id, total) VALUES
+          (1, 100.00), (1, 150.00), (1, 75.50),
+          (2, 200.00), (2, 50.00),
+          (3, 300.00);
+      `,
+      correctAnswer: "SELECT * FROM users WHERE id IN (SELECT user_id FROM orders GROUP BY user_id HAVING COUNT(*) > 2)",
+      hints: ["Use subquery with IN", "GROUP BY user_id in subquery", "Use HAVING for aggregate conditions"]
+    },
+    {
+      id: 12,
+      question: "Left join with condition",
+      description: "Write a SQL query to show all users and their orders (if any), including users with no orders",
+      testString: "users(id, name) orders(id, user_id, total)",
+      setupSQL: `
+        CREATE TABLE users (
+          id SERIAL PRIMARY KEY,
+          name VARCHAR(100)
+        );
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2)
+        );
+        INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');
+        INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00);
+      `,
+      correctAnswer: "SELECT * FROM users LEFT JOIN orders ON users.id = orders.user_id",
+      hints: ["Use LEFT JOIN", "LEFT JOIN includes all rows from left table", "ON specifies join condition"]
+    },
+    {
+      id: 13,
+      question: "Window function",
+      description: "Write a SQL query to show each order with a row number using ROW_NUMBER",
+      testString: "orders table: id, user_id, amount, created_at",
+      setupSQL: `
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          amount DECIMAL(10, 2),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO orders (user_id, amount) VALUES (1, 100.00), (2, 150.00), (1, 75.50);
+      `,
+      correctAnswer: "SELECT *, ROW_NUMBER() OVER (ORDER BY created_at) FROM orders",
+      hints: ["Use ROW_NUMBER() window function", "OVER clause defines the window", "ORDER BY inside OVER"]
+    },
+    {
+      id: 14,
+      question: "Common Table Expression (CTE)",
+      description: "Write a SQL query using WITH to create a CTE named 'high_orders' for orders over 100, then select from it",
+      testString: "orders table: id, user_id, total, created_at",
+      setupSQL: `
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2),
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO orders (user_id, total) VALUES (1, 150.00), (2, 50.00), (1, 200.00), (3, 75.00);
+      `,
+      correctAnswer: "WITH high_orders AS (SELECT * FROM orders WHERE total > 100) SELECT * FROM high_orders",
+      hints: ["Start with WITH", "Name the CTE before AS", "Select from CTE name at the end"]
+    },
+    {
+      id: 15,
+      question: "Complex aggregation",
+      description: "Write a SQL query to find the average order total per user, only for users with more than 1 order",
+      testString: "orders table: id, user_id, total",
+      setupSQL: `
+        CREATE TABLE orders (
+          id SERIAL PRIMARY KEY,
+          user_id INTEGER,
+          total DECIMAL(10, 2)
+        );
+        INSERT INTO orders (user_id, total) VALUES
+          (1, 100.00), (1, 150.00), (1, 75.50),
+          (2, 200.00), (2, 50.00),
+          (3, 300.00);
+      `,
+      correctAnswer: "SELECT user_id, AVG(total) FROM orders GROUP BY user_id HAVING COUNT(*) > 1",
+      hints: ["Use AVG() for average", "GROUP BY user_id", "HAVING filters groups after aggregation"]
+    }
+  ]
+};
+
 export const regexChallenges = {
   easy: [
     {

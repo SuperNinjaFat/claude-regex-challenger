@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { regexChallenges } from '../data/challenges';
+import { regexChallenges, postgresqlChallenges } from '../data/challenges';
+import { executeSQLQuery, compareResults, formatResults } from '../utils/sqlExecutor';
 
 function Quiz() {
-  const { difficulty } = useParams();
+  const { quizType, difficulty } = useParams();
   const navigate = useNavigate();
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
@@ -12,15 +13,19 @@ function Quiz() {
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [isCorrect, setIsCorrect] = useState(null);
+  const [sqlResult, setSqlResult] = useState(null);
+  const [sqlError, setSqlError] = useState(null);
+  const [questionStatus, setQuestionStatus] = useState({}); // Track if each question was ever answered correctly
 
-  const challenges = regexChallenges[difficulty] || [];
+  const allChallenges = quizType === 'regex' ? regexChallenges : postgresqlChallenges;
+  const challenges = allChallenges[difficulty] || [];
   const challenge = challenges[currentQuestion];
 
   useEffect(() => {
     if (!challenge) {
-      navigate('/results', { state: { score, total: challenges.length, difficulty, answers } });
+      navigate('/results', { state: { score, total: challenges.length, difficulty, answers, questionStatus } });
     }
-  }, [challenge, navigate, score, challenges.length, difficulty, answers]);
+  }, [challenge, navigate, score, challenges.length, difficulty, answers, questionStatus]);
 
   const testRegex = (pattern, testString) => {
     try {
@@ -40,34 +45,93 @@ function Quiz() {
     }
   };
 
+  // Execute SQL query in real-time as user types (for PostgreSQL quizzes)
+  useEffect(() => {
+    if (quizType === 'postgresql' && userAnswer.trim() && challenge) {
+      const result = executeSQLQuery(challenge.setupSQL, userAnswer);
+      if (result.success) {
+        setSqlResult(result.data);
+        setSqlError(null);
+      } else {
+        setSqlResult(null);
+        setSqlError(result.error);
+      }
+    } else {
+      setSqlResult(null);
+      setSqlError(null);
+    }
+  }, [userAnswer, quizType, challenge]);
+
   const checkAnswer = () => {
     if (!userAnswer.trim()) {
-      setFeedback('Please enter a regex pattern');
+      setFeedback(quizType === 'regex' ? 'Please enter a regex pattern' : 'Please enter a SQL query');
       setIsCorrect(false);
       return;
     }
 
-    const userMatches = getMatches(userAnswer, challenge.testString);
-    const correctMatches = getMatches(challenge.correctAnswer, challenge.testString);
-    
-    const isAnswerCorrect = userMatches.length > 0 && 
-                           userMatches.length === correctMatches.length &&
-                           userMatches.every(match => correctMatches.includes(match));
+    let isAnswerCorrect;
 
-    setIsCorrect(isAnswerCorrect);
-    
-    if (isAnswerCorrect) {
-      setFeedback('Correct! Well done!');
-      setScore(score + 1);
+    if (quizType === 'regex') {
+      const userMatches = getMatches(userAnswer, challenge.testString);
+      const correctMatches = getMatches(challenge.correctAnswer, challenge.testString);
+
+      isAnswerCorrect = userMatches.length > 0 &&
+                       userMatches.length === correctMatches.length &&
+                       userMatches.every(match => correctMatches.includes(match));
+
+      if (!isAnswerCorrect) {
+        setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
+      }
     } else {
-      setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
+      // PostgreSQL quiz - execute both queries and compare results
+      const userResult = executeSQLQuery(challenge.setupSQL, userAnswer);
+      const correctResult = executeSQLQuery(challenge.setupSQL, challenge.correctAnswer);
+
+      if (!userResult.success) {
+        setFeedback(`SQL Error: ${userResult.error}`);
+        isAnswerCorrect = false;
+      } else if (!correctResult.success) {
+        setFeedback('Internal error: Could not execute expected query');
+        isAnswerCorrect = false;
+      } else {
+        // Compare the results
+        isAnswerCorrect = compareResults(userResult.data, correctResult.data);
+
+        if (!isAnswerCorrect) {
+          setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
+        }
+      }
     }
 
+    setIsCorrect(isAnswerCorrect);
+
+    const questionNum = currentQuestion + 1;
+    const attemptNumber = answers.filter(a => a.questionNumber === questionNum).length + 1;
+    const isFirstAttempt = attemptNumber === 1;
+
+    if (isAnswerCorrect) {
+      setFeedback('Correct! Well done!');
+      // Only increment score if this is the first attempt for this question
+      if (isFirstAttempt && !questionStatus[questionNum]) {
+        setScore(score + 1);
+      }
+      // Mark this question as having been answered correctly at some point
+      setQuestionStatus({...questionStatus, [questionNum]: true});
+    } else {
+      // If this is the first incorrect attempt, mark question as failed
+      if (isFirstAttempt) {
+        setQuestionStatus({...questionStatus, [questionNum]: false});
+      }
+    }
+
+    // Track each submission as a separate attempt
     setAnswers([...answers, {
       question: challenge.question,
+      questionNumber: questionNum,
       userAnswer,
       correctAnswer: challenge.correctAnswer,
-      correct: isAnswerCorrect
+      correct: isAnswerCorrect,
+      attemptNumber
     }]);
   };
 
@@ -77,6 +141,8 @@ function Quiz() {
     setFeedback('');
     setShowHint(false);
     setIsCorrect(null);
+    setSqlResult(null);
+    setSqlError(null);
   };
 
   if (!challenge) {
@@ -86,7 +152,7 @@ function Quiz() {
   return (
     <div className="quiz">
       <div className="quiz-header">
-        <h2>Regex Quiz - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
+        <h2>{quizType === 'regex' ? 'Regex' : 'PostgreSQL'} Quiz - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
         <div className="progress">
           Question {currentQuestion + 1} of {challenges.length}
         </div>
@@ -96,26 +162,37 @@ function Quiz() {
       <div className="question-card">
         <h3>{challenge.question}</h3>
         <p className="description">{challenge.description}</p>
-        
+
         <div className="test-string">
-          <label>Test String:</label>
+          <label>{quizType === 'regex' ? 'Test String:' : 'Tables:'}</label>
           <code>"{challenge.testString}"</code>
         </div>
 
         <div className="answer-input">
-          <label htmlFor="regex-input">Your Regex Pattern:</label>
-          <div className="input-wrapper">
-            <span className="regex-delim">/</span>
-            <input
-              id="regex-input"
-              type="text"
+          <label htmlFor="regex-input">{quizType === 'regex' ? 'Your Regex Pattern:' : 'Your SQL Query:'}</label>
+          {quizType === 'regex' ? (
+            <div className="input-wrapper">
+              <span className="regex-delim">/</span>
+              <input
+                id="regex-input"
+                type="text"
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+                placeholder="Enter your regex pattern here..."
+                onKeyPress={(e) => e.key === 'Enter' && checkAnswer()}
+              />
+              <span className="regex-delim">/g</span>
+            </div>
+          ) : (
+            <textarea
+              id="sql-input"
               value={userAnswer}
               onChange={(e) => setUserAnswer(e.target.value)}
-              placeholder="Enter your regex pattern here..."
-              onKeyPress={(e) => e.key === 'Enter' && checkAnswer()}
+              placeholder="Enter your SQL query here..."
+              rows="4"
+              onKeyPress={(e) => e.key === 'Enter' && e.ctrlKey && checkAnswer()}
             />
-            <span className="regex-delim">/g</span>
-          </div>
+          )}
         </div>
 
         {feedback && (
@@ -151,10 +228,62 @@ function Quiz() {
           </div>
         )}
 
-        {userAnswer && (
+        {userAnswer && quizType === 'regex' && (
           <div className="live-test">
             <h4>Live Test:</h4>
             <p>Your pattern matches: <strong>{getMatches(userAnswer, challenge.testString).join(', ') || 'nothing'}</strong></p>
+          </div>
+        )}
+
+        {userAnswer && quizType === 'postgresql' && (
+          <div className="live-test sql-analysis">
+            <h4>Query Execution:</h4>
+
+            {sqlError ? (
+              <div className="analysis-section errors">
+                <strong>Error:</strong>
+                <div className="sql-error">{sqlError}</div>
+              </div>
+            ) : sqlResult ? (
+              <>
+                <div className="analysis-section">
+                  <strong>Status:</strong>
+                  <span className="status-badge valid">
+                    ✓ Query executed successfully
+                  </span>
+                </div>
+
+                <div className="analysis-section">
+                  <strong>Results ({sqlResult.length} rows):</strong>
+                  <div className="sql-results-table">
+                    {sqlResult.length === 0 ? (
+                      <p className="no-results">No rows returned</p>
+                    ) : (
+                      <table>
+                        <thead>
+                          <tr>
+                            {Object.keys(sqlResult[0]).map((col, idx) => (
+                              <th key={idx}>{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sqlResult.map((row, rowIdx) => (
+                            <tr key={rowIdx}>
+                              {Object.values(row).map((val, colIdx) => (
+                                <td key={colIdx}>
+                                  {val === null ? <em>NULL</em> : String(val)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : null}
           </div>
         )}
       </div>

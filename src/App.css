@@ -23,6 +23,56 @@
   margin: 0 auto;
 }
 
+.quiz-type-selection {
+  margin-bottom: 50px;
+}
+
+.quiz-type-selection h2 {
+  color: white;
+  margin-bottom: 25px;
+  font-size: 2rem;
+}
+
+.quiz-type-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.quiz-type-btn {
+  padding: 15px 40px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border: 3px solid white;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(10px);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.quiz-type-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.quiz-type-btn.active {
+  background: white;
+  color: #667eea;
+  box-shadow: 0 5px 20px rgba(255, 255, 255, 0.3);
+  transform: scale(1.05);
+}
+
+.quiz-type-btn.active:hover {
+  background: white;
+  transform: scale(1.05) translateY(-2px);
+}
+
 .difficulty-selection h2 {
   color: white;
   margin-bottom: 40px;
@@ -231,6 +281,30 @@
   outline: none;
 }
 
+#sql-input {
+  width: 100%;
+  border: 2px solid #e9ecef;
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 15px;
+  font-size: 1rem;
+  font-family: monospace;
+  outline: none;
+  resize: vertical;
+  min-height: 100px;
+  transition: border-color 0.3s ease;
+  line-height: 1.5;
+}
+
+#sql-input:focus {
+  border-color: #007bff;
+  background: #ffffff;
+}
+
+#sql-input::placeholder {
+  color: #adb5bd;
+}
+
 .feedback {
   padding: 15px 20px;
   border-radius: 8px;
@@ -336,6 +410,149 @@
 .live-test p {
   color: #0066cc;
   margin: 0;
+}
+
+.sql-analysis {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+}
+
+.sql-analysis h4 {
+  color: #495057;
+  margin-bottom: 20px;
+  font-size: 1.1rem;
+}
+
+.analysis-section {
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.analysis-section:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.analysis-section strong {
+  display: block;
+  color: #495057;
+  margin-bottom: 8px;
+  font-size: 0.95rem;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.status-badge.valid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-badge.invalid {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.keyword-tag {
+  background: #007bff;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  font-family: monospace;
+}
+
+.analysis-section.errors ul {
+  margin: 0;
+  padding-left: 20px;
+  color: #856404;
+}
+
+.analysis-section.errors li {
+  margin-bottom: 5px;
+}
+
+.normalized-sql {
+  display: block;
+  background: #343a40;
+  color: #00ff00;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.sql-results-table {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.sql-results-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid #dee2e6;
+}
+
+.sql-results-table th {
+  background: #007bff;
+  color: white;
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #0056b3;
+}
+
+.sql-results-table td {
+  padding: 8px 10px;
+  border: 1px solid #dee2e6;
+  font-family: monospace;
+}
+
+.sql-results-table tbody tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.sql-results-table tbody tr:hover {
+  background: #e9ecef;
+}
+
+.sql-results-table td em {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.sql-error {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  margin-top: 8px;
+}
+
+.no-results {
+  color: #6c757d;
+  font-style: italic;
+  margin: 10px 0;
 }
 
 .results {
@@ -457,6 +674,19 @@
   font-size: 1.2rem;
   min-width: 40px;
   color: #666;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.attempt-badge {
+  font-size: 0.7rem;
+  font-weight: normal;
+  background: #ffc107;
+  color: #212529;
+  padding: 2px 6px;
+  border-radius: 10px;
+  white-space: nowrap;
 }
 
 .answer-content {
