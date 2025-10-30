@@ -15,6 +15,7 @@ function Quiz() {
   const [isCorrect, setIsCorrect] = useState(null);
   const [sqlResult, setSqlResult] = useState(null);
   const [sqlError, setSqlError] = useState(null);
+  const [questionStatus, setQuestionStatus] = useState({}); // Track if each question was ever answered correctly
 
   const allChallenges = quizType === 'regex' ? regexChallenges : postgresqlChallenges;
   const challenges = allChallenges[difficulty] || [];
@@ -22,9 +23,9 @@ function Quiz() {
 
   useEffect(() => {
     if (!challenge) {
-      navigate('/results', { state: { score, total: challenges.length, difficulty, answers } });
+      navigate('/results', { state: { score, total: challenges.length, difficulty, answers, questionStatus } });
     }
-  }, [challenge, navigate, score, challenges.length, difficulty, answers]);
+  }, [challenge, navigate, score, challenges.length, difficulty, answers, questionStatus]);
 
   const testRegex = (pattern, testString) => {
     try {
@@ -88,36 +89,49 @@ function Quiz() {
 
       if (!userResult.success) {
         setFeedback(`SQL Error: ${userResult.error}`);
-        setIsCorrect(false);
-        return;
-      }
-
-      if (!correctResult.success) {
+        isAnswerCorrect = false;
+      } else if (!correctResult.success) {
         setFeedback('Internal error: Could not execute expected query');
-        setIsCorrect(false);
-        return;
-      }
+        isAnswerCorrect = false;
+      } else {
+        // Compare the results
+        isAnswerCorrect = compareResults(userResult.data, correctResult.data);
 
-      // Compare the results
-      isAnswerCorrect = compareResults(userResult.data, correctResult.data);
-
-      if (!isAnswerCorrect) {
-        setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
+        if (!isAnswerCorrect) {
+          setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
+        }
       }
     }
 
     setIsCorrect(isAnswerCorrect);
 
+    const questionNum = currentQuestion + 1;
+    const attemptNumber = answers.filter(a => a.questionNumber === questionNum).length + 1;
+    const isFirstAttempt = attemptNumber === 1;
+
     if (isAnswerCorrect) {
       setFeedback('Correct! Well done!');
-      setScore(score + 1);
+      // Only increment score if this is the first attempt for this question
+      if (isFirstAttempt && !questionStatus[questionNum]) {
+        setScore(score + 1);
+      }
+      // Mark this question as having been answered correctly at some point
+      setQuestionStatus({...questionStatus, [questionNum]: true});
+    } else {
+      // If this is the first incorrect attempt, mark question as failed
+      if (isFirstAttempt) {
+        setQuestionStatus({...questionStatus, [questionNum]: false});
+      }
     }
 
+    // Track each submission as a separate attempt
     setAnswers([...answers, {
       question: challenge.question,
+      questionNumber: questionNum,
       userAnswer,
       correctAnswer: challenge.correctAnswer,
-      correct: isAnswerCorrect
+      correct: isAnswerCorrect,
+      attemptNumber
     }]);
   };
 

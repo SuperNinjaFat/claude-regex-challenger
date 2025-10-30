@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 function Results() {
   const location = useLocation();
-  const { score, total, difficulty, answers } = location.state || {};
+  const { score, total, difficulty, answers, questionStatus } = location.state || {};
 
   if (!location.state) {
     return (
@@ -14,6 +14,9 @@ function Results() {
     );
   }
 
+  // Calculate total attempts (including re-submissions)
+  const totalAttempts = answers ? answers.length : total;
+  // Score is based on questions answered correctly on first attempt
   const percentage = Math.round((score / total) * 100);
   
   const getGrade = () => {
@@ -42,6 +45,7 @@ function Results() {
         </div>
         <p className="difficulty-completed">
           {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)} Level Completed
+          {totalAttempts > total && <span> ({total} questions, {totalAttempts} total attempts)</span>}
         </p>
       </div>
 
@@ -50,7 +54,10 @@ function Results() {
         <div className="answers-review">
           {answers.map((answer, index) => (
             <div key={index} className={`answer-item ${answer.correct ? 'correct' : 'incorrect'}`}>
-              <div className="question-number">Q{index + 1}</div>
+              <div className="question-number">
+                Q{answer.questionNumber}
+                {answer.attemptNumber > 1 && <span className="attempt-badge">Attempt {answer.attemptNumber}</span>}
+              </div>
               <div className="answer-content">
                 <h4>{answer.question}</h4>
                 <div className="answer-comparison">

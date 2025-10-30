@@ -41,51 +41,51 @@ export function executeSQLQuery(setupSQL, query) {
 
 /**
  * Compares two query results to see if they match
- * @param {Array} result1 - First query result
- * @param {Array} result2 - Second query result
+ * @param {Array} result1 - First query result (user's)
+ * @param {Array} result2 - Second query result (expected)
  * @returns {boolean} - True if results match, false otherwise
  */
 export function compareResults(result1, result2) {
   if (!result1 || !result2) return false;
   if (result1.length !== result2.length) return false;
+  if (result1.length === 0) return true; // Both empty
 
-  // Convert results to JSON for deep comparison
-  // Sort to handle different ordering (unless ORDER BY is specified)
-  const normalize = (arr) => {
-    return arr.map(row => {
-      // Convert to plain object and sort keys
-      const obj = {};
-      Object.keys(row).sort().forEach(key => {
-        // Handle numeric values that might have slight precision differences
-        if (typeof row[key] === 'number') {
-          obj[key] = Math.round(row[key] * 100) / 100;
-        } else {
-          obj[key] = row[key];
-        }
-      });
-      return obj;
-    });
+  // Get the columns from both results
+  const cols1 = Object.keys(result1[0]).sort();
+  const cols2 = Object.keys(result2[0]).sort();
+
+  // Find common columns - user query might select a subset of columns
+  const commonCols = cols1.filter(col => cols2.includes(col));
+
+  // If user selected columns that don't exist in expected result, that's wrong
+  if (cols1.some(col => !cols2.includes(col))) return false;
+
+  // User must have selected at least some columns
+  if (commonCols.length === 0) return false;
+
+  // Normalize function to handle numeric precision
+  const normalizeValue = (val) => {
+    if (typeof val === 'number') {
+      return Math.round(val * 100) / 100;
+    }
+    return val;
   };
 
-  const normalized1 = normalize(result1);
-  const normalized2 = normalize(result2);
+  // Create normalized row representations for comparison
+  const createRowSignature = (row, cols) => {
+    return cols.map(col => normalizeValue(row[col])).join('|');
+  };
 
-  // Compare each row
-  for (let i = 0; i < normalized1.length; i++) {
-    const row1 = normalized1[i];
-    const row2 = normalized2[i];
+  // For queries without ORDER BY, we need to compare sets of rows
+  // Create signatures for all rows in both results using common columns
+  const signatures1 = result1.map(row => createRowSignature(row, commonCols)).sort();
+  const signatures2 = result2.map(row => createRowSignature(row, commonCols)).sort();
 
-    // Compare keys
-    const keys1 = Object.keys(row1).sort();
-    const keys2 = Object.keys(row2).sort();
+  // Compare sorted signatures
+  if (signatures1.length !== signatures2.length) return false;
 
-    if (keys1.length !== keys2.length) return false;
-    if (!keys1.every((key, idx) => key === keys2[idx])) return false;
-
-    // Compare values
-    for (const key of keys1) {
-      if (row1[key] !== row2[key]) return false;
-    }
+  for (let i = 0; i < signatures1.length; i++) {
+    if (signatures1[i] !== signatures2[i]) return false;
   }
 
   return true;
