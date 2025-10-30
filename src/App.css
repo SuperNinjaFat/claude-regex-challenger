@@ -499,6 +499,62 @@
   word-break: break-all;
 }
 
+.sql-results-table {
+  overflow-x: auto;
+  margin-top: 10px;
+}
+
+.sql-results-table table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+  border: 1px solid #dee2e6;
+}
+
+.sql-results-table th {
+  background: #007bff;
+  color: white;
+  padding: 10px;
+  text-align: left;
+  font-weight: 600;
+  border: 1px solid #0056b3;
+}
+
+.sql-results-table td {
+  padding: 8px 10px;
+  border: 1px solid #dee2e6;
+  font-family: monospace;
+}
+
+.sql-results-table tbody tr:nth-child(even) {
+  background: #f8f9fa;
+}
+
+.sql-results-table tbody tr:hover {
+  background: #e9ecef;
+}
+
+.sql-results-table td em {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.sql-error {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+  padding: 12px;
+  border-radius: 6px;
+  font-family: monospace;
+  margin-top: 8px;
+}
+
+.no-results {
+  color: #6c757d;
+  font-style: italic;
+  margin: 10px 0;
+}
+
 .results {
   max-width: 900px;
   margin: 0 auto;

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { regexChallenges, postgresqlChallenges } from '../data/challenges';
+import { executeSQLQuery, compareResults, formatResults } from '../utils/sqlExecutor';
 
 function Quiz() {
   const { quizType, difficulty } = useParams();
@@ -12,6 +13,8 @@ function Quiz() {
   const [score, setScore] = useState(0);
   const [answers, setAnswers] = useState([]);
   const [isCorrect, setIsCorrect] = useState(null);
+  const [sqlResult, setSqlResult] = useState(null);
+  const [sqlError, setSqlError] = useState(null);
 
   const allChallenges = quizType === 'regex' ? regexChallenges : postgresqlChallenges;
   const challenges = allChallenges[difficulty] || [];
@@ -41,69 +44,22 @@ function Quiz() {
     }
   };
 
-  const normalizeSql = (sql) => {
-    return sql
-      .trim()
-      .toUpperCase()
-      .replace(/\s+/g, ' ')
-      .replace(/\s*;\s*$/, '')
-      .replace(/\s*,\s*/g, ',')
-      .replace(/\s*\(\s*/g, '(')
-      .replace(/\s*\)\s*/g, ')')
-      .replace(/\s*=\s*/g, '=')
-      .replace(/\s*>\s*/g, '>')
-      .replace(/\s*<\s*/g, '<');
-  };
-
-  const analyzeSql = (sql) => {
-    if (!sql.trim()) return null;
-
-    const analysis = {
-      valid: false,
-      keywords: [],
-      tables: [],
-      columns: [],
-      normalized: '',
-      errors: []
-    };
-
-    try {
-      const upperSql = sql.toUpperCase();
-
-      // Extract SQL keywords
-      const keywords = ['SELECT', 'FROM', 'WHERE', 'JOIN', 'LEFT JOIN', 'RIGHT JOIN',
-                       'INNER JOIN', 'GROUP BY', 'ORDER BY', 'HAVING', 'LIMIT',
-                       'COUNT', 'AVG', 'SUM', 'MAX', 'MIN', 'WITH', 'AS', 'IN', 'LIKE',
-                       'AND', 'OR', 'NOT', 'DISTINCT', 'OVER', 'ROW_NUMBER'];
-
-      analysis.keywords = keywords.filter(keyword => upperSql.includes(keyword));
-
-      // Basic syntax validation
-      if (!upperSql.includes('SELECT')) {
-        analysis.errors.push('Missing SELECT keyword');
+  // Execute SQL query in real-time as user types (for PostgreSQL quizzes)
+  useEffect(() => {
+    if (quizType === 'postgresql' && userAnswer.trim() && challenge) {
+      const result = executeSQLQuery(challenge.setupSQL, userAnswer);
+      if (result.success) {
+        setSqlResult(result.data);
+        setSqlError(null);
+      } else {
+        setSqlResult(null);
+        setSqlError(result.error);
       }
-
-      if (upperSql.includes('SELECT') && !upperSql.includes('FROM') && !upperSql.includes('COUNT') && !upperSql.includes('AVG')) {
-        analysis.errors.push('Missing FROM clause (might be needed)');
-      }
-
-      // Count parentheses
-      const openParens = (sql.match(/\(/g) || []).length;
-      const closeParens = (sql.match(/\)/g) || []).length;
-      if (openParens !== closeParens) {
-        analysis.errors.push(`Unbalanced parentheses: ${openParens} open, ${closeParens} close`);
-      }
-
-      // Get normalized version
-      analysis.normalized = normalizeSql(sql);
-      analysis.valid = analysis.errors.length === 0 && analysis.keywords.length > 0;
-
-      return analysis;
-    } catch (error) {
-      analysis.errors.push('Invalid SQL syntax');
-      return analysis;
+    } else {
+      setSqlResult(null);
+      setSqlError(null);
     }
-  };
+  }, [userAnswer, quizType, challenge]);
 
   const checkAnswer = () => {
     if (!userAnswer.trim()) {
@@ -126,14 +82,27 @@ function Quiz() {
         setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
       }
     } else {
-      // PostgreSQL quiz - normalize and compare SQL queries
-      const normalizedUserAnswer = normalizeSql(userAnswer);
-      const normalizedCorrectAnswer = normalizeSql(challenge.correctAnswer);
+      // PostgreSQL quiz - execute both queries and compare results
+      const userResult = executeSQLQuery(challenge.setupSQL, userAnswer);
+      const correctResult = executeSQLQuery(challenge.setupSQL, challenge.correctAnswer);
 
-      isAnswerCorrect = normalizedUserAnswer === normalizedCorrectAnswer;
+      if (!userResult.success) {
+        setFeedback(`SQL Error: ${userResult.error}`);
+        setIsCorrect(false);
+        return;
+      }
+
+      if (!correctResult.success) {
+        setFeedback('Internal error: Could not execute expected query');
+        setIsCorrect(false);
+        return;
+      }
+
+      // Compare the results
+      isAnswerCorrect = compareResults(userResult.data, correctResult.data);
 
       if (!isAnswerCorrect) {
-        setFeedback(`Incorrect. Try again! Expected something like: ${challenge.correctAnswer}`);
+        setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
       }
     }
 
@@ -158,6 +127,8 @@ function Quiz() {
     setFeedback('');
     setShowHint(false);
     setIsCorrect(null);
+    setSqlResult(null);
+    setSqlError(null);
   };
 
   if (!challenge) {
@@ -250,50 +221,57 @@ function Quiz() {
           </div>
         )}
 
-        {userAnswer && quizType === 'postgresql' && (() => {
-          const analysis = analyzeSql(userAnswer);
-          if (!analysis) return null;
+        {userAnswer && quizType === 'postgresql' && (
+          <div className="live-test sql-analysis">
+            <h4>Query Execution:</h4>
 
-          return (
-            <div className="live-test sql-analysis">
-              <h4>SQL Analysis:</h4>
-
-              <div className="analysis-section">
-                <strong>Status:</strong>
-                <span className={`status-badge ${analysis.valid ? 'valid' : 'invalid'}`}>
-                  {analysis.valid ? '✓ Syntax looks valid' : '⚠ Potential issues detected'}
-                </span>
+            {sqlError ? (
+              <div className="analysis-section errors">
+                <strong>Error:</strong>
+                <div className="sql-error">{sqlError}</div>
               </div>
-
-              {analysis.keywords.length > 0 && (
+            ) : sqlResult ? (
+              <>
                 <div className="analysis-section">
-                  <strong>Keywords detected:</strong>
-                  <div className="keyword-tags">
-                    {analysis.keywords.map((keyword, idx) => (
-                      <span key={idx} className="keyword-tag">{keyword}</span>
-                    ))}
+                  <strong>Status:</strong>
+                  <span className="status-badge valid">
+                    ✓ Query executed successfully
+                  </span>
+                </div>
+
+                <div className="analysis-section">
+                  <strong>Results ({sqlResult.length} rows):</strong>
+                  <div className="sql-results-table">
+                    {sqlResult.length === 0 ? (
+                      <p className="no-results">No rows returned</p>
+                    ) : (
+                      <table>
+                        <thead>
+                          <tr>
+                            {Object.keys(sqlResult[0]).map((col, idx) => (
+                              <th key={idx}>{col}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sqlResult.map((row, rowIdx) => (
+                            <tr key={rowIdx}>
+                              {Object.values(row).map((val, colIdx) => (
+                                <td key={colIdx}>
+                                  {val === null ? <em>NULL</em> : String(val)}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
                   </div>
                 </div>
-              )}
-
-              {analysis.errors.length > 0 && (
-                <div className="analysis-section errors">
-                  <strong>Issues:</strong>
-                  <ul>
-                    {analysis.errors.map((error, idx) => (
-                      <li key={idx}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <div className="analysis-section">
-                <strong>Normalized query:</strong>
-                <code className="normalized-sql">{analysis.normalized}</code>
-              </div>
-            </div>
-          );
-        })()}
+              </>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   );
