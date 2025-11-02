@@ -115,7 +115,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2)
+          total NUMERIC
         );
         INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');
         INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00), (1, 75.50);
@@ -132,7 +132,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2),
+          total NUMERIC,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00), (1, 75.50), (3, 200.00), (1, 50.00);
@@ -216,7 +216,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2)
+          total NUMERIC
         );
         INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie'), ('David');
         INSERT INTO orders (user_id, total) VALUES
@@ -240,7 +240,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2)
+          total NUMERIC
         );
         INSERT INTO users (name) VALUES ('Alice'), ('Bob'), ('Charlie');
         INSERT INTO orders (user_id, total) VALUES (1, 100.00), (2, 150.00);
@@ -257,7 +257,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          amount DECIMAL(10, 2),
+          amount NUMERIC,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         INSERT INTO orders (user_id, amount) VALUES (1, 100.00), (2, 150.00), (1, 75.50);
@@ -274,7 +274,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2),
+          total NUMERIC,
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         );
         INSERT INTO orders (user_id, total) VALUES (1, 150.00), (2, 50.00), (1, 200.00), (3, 75.00);
@@ -291,7 +291,7 @@ export const postgresqlChallenges = {
         CREATE TABLE orders (
           id SERIAL PRIMARY KEY,
           user_id INTEGER,
-          total DECIMAL(10, 2)
+          total NUMERIC
         );
         INSERT INTO orders (user_id, total) VALUES
           (1, 100.00), (1, 150.00), (1, 75.50),
