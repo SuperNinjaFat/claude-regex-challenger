@@ -58,38 +58,49 @@ export default function Quiz() {
     }
   };
 
-  // Execute SQL query in real-time as user types (for PostgreSQL quizzes)
+  // Execute SQL query with 1 second debounce (for PostgreSQL quizzes)
   useEffect(() => {
     if (quizType === 'postgresql' && userAnswer.trim() && challenge) {
+      // Set loading state immediately
       setIsLoading(true);
 
-      fetch('/api/execute-sql', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          setupSQL: challenge.setupSQL,
-          userQuery: userAnswer
+      // Debounce the API call - wait 1 second after user stops typing
+      const timeoutId = setTimeout(() => {
+        fetch('/api/execute-sql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            setupSQL: challenge.setupSQL,
+            userQuery: userAnswer
+          })
         })
-      })
-      .then(res => res.json())
-      .then(result => {
-        if (result.success) {
-          setSqlResult(result.data);
-          setSqlError(null);
-        } else {
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            setSqlResult(result.data);
+            setSqlError(null);
+          } else {
+            setSqlResult(null);
+            setSqlError(result.error);
+          }
+          setIsLoading(false);
+        })
+        .catch(error => {
+          setSqlError(error.message);
           setSqlResult(null);
-          setSqlError(result.error);
-        }
+          setIsLoading(false);
+        });
+      }, 1000); // 1 second delay
+
+      // Cleanup function to cancel the timeout if user keeps typing
+      return () => {
+        clearTimeout(timeoutId);
         setIsLoading(false);
-      })
-      .catch(error => {
-        setSqlError(error.message);
-        setSqlResult(null);
-        setIsLoading(false);
-      });
+      };
     } else {
       setSqlResult(null);
       setSqlError(null);
+      setIsLoading(false);
     }
   }, [userAnswer, quizType, challenge]);
 
