@@ -7,8 +7,19 @@ import { regexChallenges, postgresqlChallenges } from '../../../src/data/challen
 const compareResults = (result1, result2) => {
   if (result1.length !== result2.length) return false;
 
-  const sortedResult1 = JSON.stringify(result1.sort());
-  const sortedResult2 = JSON.stringify(result2.sort());
+  // Compare results in order (important for ORDER BY queries)
+  // But also check if they're equal when sorted (for queries without ORDER BY)
+  const directMatch = JSON.stringify(result1) === JSON.stringify(result2);
+
+  if (directMatch) return true;
+
+  // If direct match fails, try sorted comparison (for unordered queries)
+  const sortedResult1 = JSON.stringify([...result1].sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b))
+  ));
+  const sortedResult2 = JSON.stringify([...result2].sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b))
+  ));
 
   return sortedResult1 === sortedResult2;
 };
