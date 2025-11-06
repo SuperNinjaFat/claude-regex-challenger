@@ -1,7 +1,8 @@
+'use client'
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
-function Home() {
+export default function Home() {
   const [quizType, setQuizType] = useState('regex');
 
   return (
@@ -33,7 +34,7 @@ function Home() {
         <h2>Choose Your Challenge Level</h2>
 
         <div className="difficulty-cards">
-          <Link to={`/quiz/${quizType}/easy`} className="difficulty-card easy">
+          <Link href={`/quiz/${quizType}/easy`} className="difficulty-card easy">
             <h3>Easy</h3>
             <p>
               {quizType === 'regex'
@@ -43,7 +44,7 @@ function Home() {
             <span className="challenge-count">5 challenges</span>
           </Link>
 
-          <Link to={`/quiz/${quizType}/medium`} className="difficulty-card medium">
+          <Link href={`/quiz/${quizType}/medium`} className="difficulty-card medium">
             <h3>Medium</h3>
             <p>
               {quizType === 'regex'
@@ -53,7 +54,7 @@ function Home() {
             <span className="challenge-count">5 challenges</span>
           </Link>
 
-          <Link to={`/quiz/${quizType}/hard`} className="difficulty-card hard">
+          <Link href={`/quiz/${quizType}/hard`} className="difficulty-card hard">
             <h3>Hard</h3>
             <p>
               {quizType === 'regex'
@@ -78,5 +79,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home;

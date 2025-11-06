@@ -1,24 +1,36 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+'use client'
+import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 
-function Results() {
-  const location = useLocation();
-  const { score, total, difficulty, quizType, answers, questionStatus } = location.state || {};
+export default function Results() {
+  const router = useRouter();
+  const [resultsData, setResultsData] = useState(null);
 
-  if (!location.state) {
+  useEffect(() => {
+    // Get data from sessionStorage (we'll store it there from Quiz page)
+    const data = sessionStorage.getItem('quizResults');
+    if (data) {
+      setResultsData(JSON.parse(data));
+    }
+  }, []);
+
+  if (!resultsData) {
     return (
       <div className="results">
         <h2>No quiz data found</h2>
-        <Link to="/" className="home-link">Return to Home</Link>
+        <Link href="/" className="home-link">Return to Home</Link>
       </div>
     );
   }
+
+  const { score, total, difficulty, quizType, answers, questionStatus } = resultsData;
 
   // Calculate total attempts (including re-submissions)
   const totalAttempts = answers ? answers.length : total;
   // Score is based on questions answered correctly on first attempt
   const percentage = Math.round((score / total) * 100);
-  
+
   const getGrade = () => {
     if (percentage >= 90) return { grade: 'A', message: 'Excellent!' };
     if (percentage >= 80) return { grade: 'B', message: 'Good job!' };
@@ -80,23 +92,23 @@ function Results() {
       </div>
 
       <div className="results-actions">
-        <Link to="/" className="home-link">
+        <Link href="/" className="home-link">
           Return to Home
         </Link>
 
         <div className="retry-options">
-          <Link to={`/quiz/${quizType}/${difficulty}`} className="retry-link">
+          <Link href={`/quiz/${quizType}/${difficulty}`} className="retry-link">
             Retry {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
           </Link>
 
           {difficulty === 'easy' && (
-            <Link to={`/quiz/${quizType}/medium`} className="next-level-link">
+            <Link href={`/quiz/${quizType}/medium`} className="next-level-link">
               Try Medium Level
             </Link>
           )}
 
           {difficulty === 'medium' && (
-            <Link to={`/quiz/${quizType}/hard`} className="next-level-link">
+            <Link href={`/quiz/${quizType}/hard`} className="next-level-link">
               Try Hard Level
             </Link>
           )}
@@ -115,5 +127,3 @@ function Results() {
     </div>
   );
 }
-
-export default Results;
