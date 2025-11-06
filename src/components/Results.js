@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 
 function Results() {
   const location = useLocation();
-  const { score, total, difficulty, answers, questionStatus } = location.state || {};
+  const { score, total, difficulty, quizType, answers, questionStatus } = location.state || {};
 
   if (!location.state) {
     return (
@@ -83,20 +83,20 @@ function Results() {
         <Link to="/" className="home-link">
           Return to Home
         </Link>
-        
+
         <div className="retry-options">
-          <Link to={`/quiz/${difficulty}`} className="retry-link">
+          <Link to={`/quiz/${quizType}/${difficulty}`} className="retry-link">
             Retry {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}
           </Link>
-          
+
           {difficulty === 'easy' && (
-            <Link to="/quiz/medium" className="next-level-link">
+            <Link to={`/quiz/${quizType}/medium`} className="next-level-link">
               Try Medium Level
             </Link>
           )}
-          
+
           {difficulty === 'medium' && (
-            <Link to="/quiz/hard" className="next-level-link">
+            <Link to={`/quiz/${quizType}/hard`} className="next-level-link">
               Try Hard Level
             </Link>
           )}

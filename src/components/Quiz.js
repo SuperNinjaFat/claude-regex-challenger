@@ -23,9 +23,9 @@ function Quiz() {
 
   useEffect(() => {
     if (!challenge) {
-      navigate('/results', { state: { score, total: challenges.length, difficulty, answers, questionStatus } });
+      navigate('/results', { state: { score, total: challenges.length, difficulty, quizType, answers, questionStatus } });
     }
-  }, [challenge, navigate, score, challenges.length, difficulty, answers, questionStatus]);
+  }, [challenge, navigate, score, challenges.length, difficulty, quizType, answers, questionStatus]);
 
   const testRegex = (pattern, testString) => {
     try {
