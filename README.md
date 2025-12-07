@@ -14,6 +14,8 @@ A Next.js web application that quizzes users on **Regex** and **PostgreSQL** wit
 - Scoring system with detailed results and grade calculation
 - Hints system for each challenge
 - Live pattern matching (Regex) and query execution (PostgreSQL)
+- Debounced query execution (1-second delay) for optimal performance
+- Accurate result comparison that preserves ORDER BY clause ordering
 - Responsive design that works on mobile and desktop
 
 ### Technical Highlights
