@@ -189,14 +189,14 @@ export const postgresqlChallenges = {
           id SERIAL PRIMARY KEY,
           name VARCHAR(100),
           email VARCHAR(100),
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+          created_at TIMESTAMP
         );
-        INSERT INTO users (name, email) VALUES
-          ('User1', 'user1@example.com'),
-          ('User2', 'user2@example.com'),
-          ('User3', 'user3@example.com'),
-          ('User4', 'user4@example.com'),
-          ('User5', 'user5@example.com');
+        INSERT INTO users (name, email, created_at) VALUES
+          ('User1', 'user1@example.com', '2024-01-01 10:00:00'),
+          ('User2', 'user2@example.com', '2024-01-02 10:00:00'),
+          ('User3', 'user3@example.com', '2024-01-03 10:00:00'),
+          ('User4', 'user4@example.com', '2024-01-04 10:00:00'),
+          ('User5', 'user5@example.com', '2024-01-05 10:00:00');
       `,
       correctAnswer: "SELECT * FROM users ORDER BY created_at LIMIT 10",
       hints: ["Use LIMIT clause", "ORDER BY comes before LIMIT", "LIMIT goes at the end"]

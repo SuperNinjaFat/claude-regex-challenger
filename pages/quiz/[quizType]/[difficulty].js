@@ -1,11 +1,33 @@
+'use client'
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { regexChallenges, postgresqlChallenges } from '../data/challenges';
-import { executeSQLQuery, compareResults, formatResults } from '../utils/sqlExecutor';
+import { useRouter } from 'next/router';
+import { regexChallenges, postgresqlChallenges } from '../../../src/data/challenges';
 
-function Quiz() {
-  const { quizType, difficulty } = useParams();
-  const navigate = useNavigate();
+// Utility function to compare SQL results
+const compareResults = (result1, result2) => {
+  if (result1.length !== result2.length) return false;
+
+  // Compare results in order (important for ORDER BY queries)
+  // But also check if they're equal when sorted (for queries without ORDER BY)
+  const directMatch = JSON.stringify(result1) === JSON.stringify(result2);
+
+  if (directMatch) return true;
+
+  // If direct match fails, try sorted comparison (for unordered queries)
+  const sortedResult1 = JSON.stringify([...result1].sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b))
+  ));
+  const sortedResult2 = JSON.stringify([...result2].sort((a, b) =>
+    JSON.stringify(a).localeCompare(JSON.stringify(b))
+  ));
+
+  return sortedResult1 === sortedResult2;
+};
+
+export default function Quiz() {
+  const router = useRouter();
+  const { quizType, difficulty } = router.query;
+
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState('');
@@ -15,26 +37,28 @@ function Quiz() {
   const [isCorrect, setIsCorrect] = useState(null);
   const [sqlResult, setSqlResult] = useState(null);
   const [sqlError, setSqlError] = useState(null);
-  const [questionStatus, setQuestionStatus] = useState({}); // Track if each question was ever answered correctly
+  const [questionStatus, setQuestionStatus] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
 
   const allChallenges = quizType === 'regex' ? regexChallenges : postgresqlChallenges;
-  const challenges = allChallenges[difficulty] || [];
+  const challenges = allChallenges && allChallenges[difficulty] ? allChallenges[difficulty] : [];
   const challenge = challenges[currentQuestion];
 
   useEffect(() => {
-    if (!challenge) {
-      navigate('/results', { state: { score, total: challenges.length, difficulty, answers, questionStatus } });
+    if (!challenge && challenges.length > 0 && currentQuestion >= challenges.length) {
+      // Store results in sessionStorage
+      const resultsData = {
+        score,
+        total: challenges.length,
+        difficulty,
+        quizType,
+        answers,
+        questionStatus
+      };
+      sessionStorage.setItem('quizResults', JSON.stringify(resultsData));
+      router.push('/results');
     }
-  }, [challenge, navigate, score, challenges.length, difficulty, answers, questionStatus]);
-
-  const testRegex = (pattern, testString) => {
-    try {
-      const regex = new RegExp(pattern, 'g');
-      return regex.test(testString);
-    } catch (error) {
-      return false;
-    }
-  };
+  }, [challenge, currentQuestion, challenges.length, score, difficulty, quizType, answers, questionStatus, router]);
 
   const getMatches = (pattern, testString) => {
     try {
@@ -45,24 +69,53 @@ function Quiz() {
     }
   };
 
-  // Execute SQL query in real-time as user types (for PostgreSQL quizzes)
+  // Execute SQL query with 1 second debounce (for PostgreSQL quizzes)
   useEffect(() => {
     if (quizType === 'postgresql' && userAnswer.trim() && challenge) {
-      const result = executeSQLQuery(challenge.setupSQL, userAnswer);
-      if (result.success) {
-        setSqlResult(result.data);
-        setSqlError(null);
-      } else {
-        setSqlResult(null);
-        setSqlError(result.error);
-      }
+      // Set loading state immediately
+      setIsLoading(true);
+
+      // Debounce the API call - wait 1 second after user stops typing
+      const timeoutId = setTimeout(() => {
+        fetch('/api/execute-sql', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            setupSQL: challenge.setupSQL,
+            userQuery: userAnswer
+          })
+        })
+        .then(res => res.json())
+        .then(result => {
+          if (result.success) {
+            setSqlResult(result.data);
+            setSqlError(null);
+          } else {
+            setSqlResult(null);
+            setSqlError(result.error);
+          }
+          setIsLoading(false);
+        })
+        .catch(error => {
+          setSqlError(error.message);
+          setSqlResult(null);
+          setIsLoading(false);
+        });
+      }, 1000); // 1 second delay
+
+      // Cleanup function to cancel the timeout if user keeps typing
+      return () => {
+        clearTimeout(timeoutId);
+        setIsLoading(false);
+      };
     } else {
       setSqlResult(null);
       setSqlError(null);
+      setIsLoading(false);
     }
   }, [userAnswer, quizType, challenge]);
 
-  const checkAnswer = () => {
+  const checkAnswer = async () => {
     if (!userAnswer.trim()) {
       setFeedback(quizType === 'regex' ? 'Please enter a regex pattern' : 'Please enter a SQL query');
       setIsCorrect(false);
@@ -83,23 +136,49 @@ function Quiz() {
         setFeedback(`Incorrect. Your pattern matched: ${userMatches.join(', ') || 'nothing'}`);
       }
     } else {
-      // PostgreSQL quiz - execute both queries and compare results
-      const userResult = executeSQLQuery(challenge.setupSQL, userAnswer);
-      const correctResult = executeSQLQuery(challenge.setupSQL, challenge.correctAnswer);
+      // PostgreSQL quiz - execute both queries and compare results via API
+      try {
+        setIsLoading(true);
 
-      if (!userResult.success) {
-        setFeedback(`SQL Error: ${userResult.error}`);
-        isAnswerCorrect = false;
-      } else if (!correctResult.success) {
-        setFeedback('Internal error: Could not execute expected query');
-        isAnswerCorrect = false;
-      } else {
-        // Compare the results
-        isAnswerCorrect = compareResults(userResult.data, correctResult.data);
+        const [userResult, correctResult] = await Promise.all([
+          fetch('/api/execute-sql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              setupSQL: challenge.setupSQL,
+              userQuery: userAnswer
+            })
+          }).then(res => res.json()),
+          fetch('/api/execute-sql', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              setupSQL: challenge.setupSQL,
+              userQuery: challenge.correctAnswer
+            })
+          }).then(res => res.json())
+        ]);
 
-        if (!isAnswerCorrect) {
-          setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
+        setIsLoading(false);
+
+        if (!userResult.success) {
+          setFeedback(`SQL Error: ${userResult.error}`);
+          isAnswerCorrect = false;
+        } else if (!correctResult.success) {
+          setFeedback('Internal error: Could not execute expected query');
+          isAnswerCorrect = false;
+        } else {
+          // Compare the results
+          isAnswerCorrect = compareResults(userResult.data, correctResult.data);
+
+          if (!isAnswerCorrect) {
+            setFeedback(`Incorrect. Your query returned different results. Expected ${correctResult.data.length} rows, got ${userResult.data.length} rows.`);
+          }
         }
+      } catch (error) {
+        setIsLoading(false);
+        setFeedback(`Error: ${error.message}`);
+        isAnswerCorrect = false;
       }
     }
 
@@ -145,14 +224,15 @@ function Quiz() {
     setSqlError(null);
   };
 
-  if (!challenge) {
+  // Show loading while router query is being populated
+  if (!router.isReady || !challenge) {
     return <div>Loading...</div>;
   }
 
   return (
     <div className="quiz">
       <div className="quiz-header">
-        <h2>{quizType === 'regex' ? 'Regex' : 'PostgreSQL'} Quiz - {difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
+        <h2>{quizType === 'regex' ? 'Regex' : 'PostgreSQL'} Quiz - {difficulty && difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</h2>
         <div className="progress">
           Question {currentQuestion + 1} of {challenges.length}
         </div>
@@ -202,10 +282,10 @@ function Quiz() {
         )}
 
         <div className="quiz-actions">
-          <button onClick={checkAnswer} disabled={!userAnswer.trim()}>
-            Check Answer
+          <button onClick={checkAnswer} disabled={!userAnswer.trim() || isLoading}>
+            {isLoading ? 'Checking...' : 'Check Answer'}
           </button>
-          
+
           <button onClick={() => setShowHint(!showHint)} className="hint-btn">
             {showHint ? 'Hide Hint' : 'Show Hint'}
           </button>
@@ -239,7 +319,9 @@ function Quiz() {
           <div className="live-test sql-analysis">
             <h4>Query Execution:</h4>
 
-            {sqlError ? (
+            {isLoading ? (
+              <div>Loading...</div>
+            ) : sqlError ? (
               <div className="analysis-section errors">
                 <strong>Error:</strong>
                 <div className="sql-error">{sqlError}</div>
@@ -290,5 +372,3 @@ function Quiz() {
     </div>
   );
 }
-
-export default Quiz;
